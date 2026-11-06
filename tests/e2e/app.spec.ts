@@ -53,7 +53,10 @@ async function fingerprint(root: string): Promise<Record<string, string>> {
     for (const dirent of await readdir(path.join(root, relative), { withFileTypes: true })) {
       const child = path.join(relative, dirent.name)
       if (dirent.isDirectory()) await walk(child)
-      else result[child] = createHash('sha256').update(await readFile(path.join(root, child))).digest('hex')
+      else
+        result[child] = createHash('sha256')
+          .update(await readFile(path.join(root, child)))
+          .digest('hex')
     }
   }
   await walk('')
@@ -127,7 +130,10 @@ test('full path: scan, plan, simulation, move, undo', async () => {
   await expect(topicList).toContainText('Klienci')
   await page.waitForTimeout(300)
   await page.screenshot({ path: path.join(SHOTS, '3b-tematy.png') })
-  await topicList.getByRole('group', { name: 'Decision for Dokumenty\\Dom' }).getByRole('button', { name: 'Keep' }).click()
+  await topicList
+    .getByRole('group', { name: 'Decision for Dokumenty\\Dom' })
+    .getByRole('button', { name: 'Keep' })
+    .click()
   await expect(page.getByTestId('plan-kept')).not.toHaveText('0')
   await page.getByRole('button', { name: 'Close' }).click()
 

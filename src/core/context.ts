@@ -3,11 +3,58 @@ import { isDriveRoot, isWithin } from './safety'
 import type { Category, FileEntry, FolderDecision, TopicInfo } from './types'
 
 const GENERIC_NAMES = new Set([
-  'pobrane', 'downloads', 'download', 'pulpit', 'desktop', 'dokumenty', 'documents', 'moje dokumenty', 'my documents',
-  'zdjęcia', 'zdjecia', 'obrazy', 'pictures', 'images', 'photos', 'fotki', 'muzyka', 'music', 'wideo', 'video',
-  'videos', 'filmy', 'nowy folder', 'new folder', 'inne', 'other', 'others', 'różne', 'rozne', 'misc', 'stuff',
-  'stare', 'old', 'kopia', 'copy', 'kopie', 'backup', 'backups', 'kopia zapasowa', 'temp', 'tmp', 'dcim', 'camera',
-  '100media', '100apple', 'screenshots', 'zrzuty ekranu', 'nieposortowane', 'unsorted', 'users', 'public', 'publiczny',
+  'pobrane',
+  'downloads',
+  'download',
+  'pulpit',
+  'desktop',
+  'dokumenty',
+  'documents',
+  'moje dokumenty',
+  'my documents',
+  'zdjęcia',
+  'zdjecia',
+  'obrazy',
+  'pictures',
+  'images',
+  'photos',
+  'fotki',
+  'muzyka',
+  'music',
+  'wideo',
+  'video',
+  'videos',
+  'filmy',
+  'nowy folder',
+  'new folder',
+  'inne',
+  'other',
+  'others',
+  'różne',
+  'rozne',
+  'misc',
+  'stuff',
+  'stare',
+  'old',
+  'kopia',
+  'copy',
+  'kopie',
+  'backup',
+  'backups',
+  'kopia zapasowa',
+  'temp',
+  'tmp',
+  'dcim',
+  'camera',
+  '100media',
+  '100apple',
+  'screenshots',
+  'zrzuty ekranu',
+  'nieposortowane',
+  'unsorted',
+  'users',
+  'public',
+  'publiczny',
 ])
 
 const COPY_SUFFIX = /(\s*\(\d+\)|\s*-\s*(kopia|copy))+$/i
@@ -101,7 +148,9 @@ function topCategories(node: FolderNode): Category[] {
 function findPageFor(parent: FolderNode, folderName: string): FileEntry | undefined {
   const page = WEB_ASSETS.exec(folderName)?.[1].toLowerCase()
   if (!page) return undefined
-  return parent.entries.find((e) => (e.ext === 'html' || e.ext === 'htm') && e.name.slice(0, -e.ext.length - 1).toLowerCase() === page)
+  return parent.entries.find(
+    (e) => (e.ext === 'html' || e.ext === 'htm') && e.name.slice(0, -e.ext.length - 1).toLowerCase() === page,
+  )
 }
 
 export interface ContextResult {

@@ -201,7 +201,12 @@ describe('TreeIndex', () => {
     const tiles = index.tiles()
     expect(tiles.find((t) => t.label === 'a')).toMatchObject({ bytes: 4, files: 2, isDir: true })
     expect(tiles.find((t) => t.category === 'audio')).toMatchObject({ bytes: 2, isDir: false, kind: 'loose' })
-    expect(index.tiles(path.join(root, 'a')).map((t) => t.kind).sort()).toEqual(['dir', 'loose'])
+    expect(
+      index
+        .tiles(path.join(root, 'a'))
+        .map((t) => t.kind)
+        .sort(),
+    ).toEqual(['dir', 'loose'])
     expect(index.tiles(root, 1)[0]).toMatchObject({ kind: 'rest', restCount: 2 })
   })
 })

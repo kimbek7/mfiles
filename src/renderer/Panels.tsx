@@ -183,9 +183,7 @@ export function PlanPanel({ onOpen }: { onOpen: (target: DrawerTarget) => void }
 
   const toggle = (dimension: Dimension): void => {
     const { dimensions } = settings
-    const next = dimensions.includes(dimension)
-      ? dimensions.filter((d) => d !== dimension)
-      : [...dimensions, dimension]
+    const next = dimensions.includes(dimension) ? dimensions.filter((d) => d !== dimension) : [...dimensions, dimension]
     if (next.length > 0) void updateSettings({ dimensions: next })
   }
 

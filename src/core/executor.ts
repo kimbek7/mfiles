@@ -26,15 +26,7 @@ import { errorCode, hashFile } from './util'
 
 export const TEMP_SUFFIX = '.mfiles-tmp'
 
-export type Step =
-  | 'intent'
-  | 'placeholder'
-  | 'copied'
-  | 'renamed'
-  | 'verified'
-  | 'source-removed'
-  | 'done'
-  | 'manifest'
+export type Step = 'intent' | 'placeholder' | 'copied' | 'renamed' | 'verified' | 'source-removed' | 'done' | 'manifest'
 
 /** Test-only exception simulating a sudden stop: it skips all cleanup. */
 export class SimulatedCrash extends Error {}
@@ -252,7 +244,10 @@ function manifestContent(rows: { move: Move; to: string }[], header: string[]): 
 }
 
 export function newSessionId(): string {
-  const stamp = new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14)
+  const stamp = new Date()
+    .toISOString()
+    .replace(/[-:.TZ]/g, '')
+    .slice(0, 14)
   return `${stamp}-${randomBytes(4).toString('hex')}`
 }
 

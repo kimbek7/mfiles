@@ -292,11 +292,7 @@ export const pluralDictionaries: Record<Language, Record<PluralKey, PluralForms>
   },
 }
 
-export function translate(
-  language: Language,
-  key: TextKey,
-  params: Record<string, string | number> = {},
-): string {
+export function translate(language: Language, key: TextKey, params: Record<string, string | number> = {}): string {
   return dictionaries[language][key].replace(/\{(\w+)\}/g, (match, name: string) =>
     name in params ? String(params[name]) : match,
   )

@@ -33,10 +33,16 @@ function plan(entries: FileEntry[], decisions?: Record<string, FolderDecision>, 
 const relativeTo = (p: Plan, move: Plan['moves'][number]): string => path.relative(p.options.targetRoot, move.to)
 
 describe('isGenericFolderName', () => {
-  it.each(['Pobrane', 'DOWNLOADS', 'Nowy folder', 'New folder (2)', 'Dokumenty - kopia', 'Zdjęcia', '20240112', 'DCIM'])(
-    '%s is a generic name',
-    (name) => expect(isGenericFolderName(name)).toBe(true),
-  )
+  it.each([
+    'Pobrane',
+    'DOWNLOADS',
+    'Nowy folder',
+    'New folder (2)',
+    'Dokumenty - kopia',
+    'Zdjęcia',
+    '20240112',
+    'DCIM',
+  ])('%s is a generic name', (name) => expect(isGenericFolderName(name)).toBe(true))
 
   it('recognizes generated identifiers', () => {
     expect(isGenericFolderName('3f2504e0-4f89-11d3-9a0c-0305e82c3301')).toBe(true)
@@ -61,7 +67,11 @@ describe('analyzeContext', () => {
   })
 
   it('splitting a topic reveals its subfolders', () => {
-    const entries = [entry('Klienci\\Kowalski\\umowa.pdf'), entry('Klienci\\Nowak\\pismo.pdf'), entry('Klienci\\lista.xlsx')]
+    const entries = [
+      entry('Klienci\\Kowalski\\umowa.pdf'),
+      entry('Klienci\\Nowak\\pismo.pdf'),
+      entry('Klienci\\lista.xlsx'),
+    ]
     const result = analyzeContext(entries, 'C:\\r', 'C:\\r\\_S', { 'C:\\r\\Klienci': 'split' })
     expect(result.wholeFolders.map((e) => e.name).sort()).toEqual(['Kowalski', 'Nowak'])
     expect(result.loose.map((e) => e.name)).toEqual(['lista.xlsx'])
@@ -122,7 +132,8 @@ describe('planner with context', () => {
     const photo = { ...entry('Pobrane\\foto.jpg'), category: 'images' as const }
     const xmp = entry('Pobrane\\foto.jpg.xmp')
     const p = plan([video, subtitles, other, photo, xmp])
-    const to = (from: FileEntry): string => relativeTo(p, p.moves.find((m) => m.from === from.path) as Plan['moves'][number])
+    const to = (from: FileEntry): string =>
+      relativeTo(p, p.moves.find((m) => m.from === from.path) as Plan['moves'][number])
     expect(to(video)).toBe('Wideo\\film.mp4')
     expect(to(other)).toBe('Wideo\\film (2).mp4')
     expect(to(subtitles)).toBe('Wideo\\film (2).pl.srt')

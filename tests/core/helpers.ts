@@ -35,7 +35,9 @@ export async function snapshot(root: string): Promise<Record<string, string>> {
         await walk(child)
       } else {
         const full = path.join(root, child)
-        const hash = createHash('sha256').update(await readFile(full)).digest('hex')
+        const hash = createHash('sha256')
+          .update(await readFile(full))
+          .digest('hex')
         result[child] = `${hash}:${Math.round((await stat(full)).mtimeMs)}`
       }
     }

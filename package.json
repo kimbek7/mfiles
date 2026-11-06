@@ -9,10 +9,12 @@
     "preview": "electron-vite preview",
     "typecheck": "tsc --noEmit",
     "e2e": "electron-vite build && playwright test",
-    "dist": "electron-vite build && electron-builder --win"
+    "dist": "electron-vite build && electron-builder --win",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
-  "author": "Sylwester Buczak",
-  "description": "Visual file organizer",
+  "author": "Namusoft",
+  "description": "Organize a folder or drive with a live visualization, a preview of every change and full undo",
   "dependencies": {
     "@tanstack/react-virtual": "^3.14.26",
     "d3-hierarchy": "^3.1.3",
@@ -33,6 +35,7 @@
     "electron": "^45.2.3",
     "electron-builder": "^26.18.0",
     "electron-vite": "^6.0.0",
+    "prettier": "3.9.10",
     "typescript": "^7.0.2",
     "vite": "^8.3.6",
     "vitest": "^5.1.0"
@@ -57,10 +60,31 @@
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "Mfiles-${version}-setup.${ext}"
     },
     "portable": {
       "artifactName": "Mfiles-${version}-portable.exe"
     }
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/kimbek7/mfiles#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kimbek7/mfiles.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kimbek7/mfiles/issues"
+  },
+  "keywords": [
+    "file-organizer",
+    "electron",
+    "windows",
+    "duplicates",
+    "treemap",
+    "visualization"
+  ],
+  "engines": {
+    "node": ">=22"
   }
 }
