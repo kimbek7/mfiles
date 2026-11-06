@@ -12,6 +12,7 @@ import { TreeIndex } from '../core/tree'
 import { CATEGORIES } from '../core/types'
 import type { Category, DuplicateGroup, FileEntry, Move, Plan, ScanStats } from '../core/types'
 import { PARTICLE_STRIDE } from '../shared/api'
+import { AppError } from '../shared/i18n'
 import type {
   DuplicatesPage,
   FlowEvent,
@@ -26,7 +27,7 @@ import type {
 } from '../shared/api'
 
 const port = parentPort
-if (!port) throw new Error('Ten moduł działa wyłącznie jako worker')
+if (!port) throw new Error('This module runs only as a worker')
 
 const { journalDir } = workerData as { journalDir: string }
 const EMIT_INTERVAL_MS = 100
@@ -84,7 +85,7 @@ function throttled<A extends unknown[]>(fn: (...args: A) => void): (...args: A) 
 }
 
 async function withLock<T>(fn: () => Promise<T>): Promise<T> {
-  if (busy) throw new Error('Trwa inna operacja')
+  if (busy) throw new AppError('busy')
   busy = true
   controller = new AbortController()
   try {
@@ -133,7 +134,7 @@ class FlowBatcher {
       )
     }
     this.pending = []
-    if (particles.length % PARTICLE_STRIDE !== 0) throw new Error('Uszkodzona paczka cząsteczek')
+    if (particles.length % PARTICLE_STRIDE !== 0) throw new Error('Malformed particle batch')
     emit({
       event: 'flow',
       payload: {
@@ -150,7 +151,7 @@ class FlowBatcher {
 }
 
 function requirePlan(planId: string): Plan {
-  if (!lastPlan || lastPlan.id !== planId) throw new Error('Plan jest nieaktualny, zbuduj go ponownie')
+  if (!lastPlan || lastPlan.id !== planId) throw new AppError('planStale')
   return lastPlan
 }
 
@@ -164,7 +165,7 @@ const api: WorkerApi = {
     withLock(async () => {
       root = path.resolve(requestedRoot)
       const rootStat = await stat(root).catch(() => null)
-      if (!rootStat?.isDirectory()) throw new Error(`Folder nie istnieje: ${root}`)
+      if (!rootStat?.isDirectory()) throw new AppError('folderMissing', root)
 
       const { signal } = controller
       entries = []
@@ -206,7 +207,7 @@ const api: WorkerApi = {
   cancel: async () => controller.abort(),
 
   tiles: async (focus) => {
-    if (!tree) throw new Error('Brak wyników skanu')
+    if (!tree) throw new AppError('noScan')
     const target = focus ?? root
     const view: TileView = { focus: target, parent: tree.parentOf(target), tiles: tree.tiles(target) }
     return view
@@ -239,7 +240,7 @@ const api: WorkerApi = {
 
   setKeeper: async (hash, keeper) => {
     const group = duplicates.find((g) => g.hash === hash)
-    if (!group?.paths.includes(keeper)) throw new Error('Nieznany egzemplarz duplikatu')
+    if (!group?.paths.includes(keeper)) throw new AppError('unknownDuplicate')
     group.keeper = keeper
   },
 

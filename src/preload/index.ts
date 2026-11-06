@@ -4,7 +4,7 @@ import type { MfilesBridge, WorkerEvent } from '../shared/api'
 
 const bridge: MfilesBridge = {
   call: ((method: string, ...args: unknown[]) => ipcRenderer.invoke('mfiles:call', method, args)) as MfilesBridge['call'],
-  pickFolder: () => ipcRenderer.invoke('mfiles:pickFolder'),
+  pickFolder: (title) => ipcRenderer.invoke('mfiles:pickFolder', title),
   drives: () => ipcRenderer.invoke('mfiles:drives'),
   reveal: (target) => ipcRenderer.invoke('mfiles:reveal', target),
   onEvent: (listener) => {

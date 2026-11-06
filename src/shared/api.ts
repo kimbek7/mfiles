@@ -10,6 +10,7 @@ import type {
   TreeTile,
   UndoResult,
 } from '../core/types'
+import type { Language } from './i18n'
 
 export type ScanPhase = 'walk' | 'enrich' | 'duplicates' | 'done' | 'cancelled'
 
@@ -38,6 +39,7 @@ export interface PlanRequest {
   dimensions: Dimension[]
   separateDuplicates: boolean
   folderDecisions: Record<string, FolderDecision>
+  language: Language
 }
 
 export interface PlanFile {
@@ -120,7 +122,7 @@ export interface DriveInfo {
 
 export interface MfilesBridge {
   call<M extends keyof WorkerApi>(method: M, ...args: Parameters<WorkerApi[M]>): ReturnType<WorkerApi[M]>
-  pickFolder(): Promise<string | null>
+  pickFolder(title: string): Promise<string | null>
   drives(): Promise<DriveInfo[]>
   reveal(path: string): Promise<void>
   onEvent(listener: (event: WorkerEvent) => void): () => void

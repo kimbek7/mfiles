@@ -1,6 +1,8 @@
 import { CATEGORIES } from '../core/types'
-import type { Category, MoveFailure, SessionStatus, SkipReason } from '../core/types'
+import type { Category } from '../core/types'
 import type { FlowEvent, MfilesBridge } from '../shared/api'
+import { DEFAULT_LANGUAGE } from '../shared/i18n'
+import type { Language } from '../shared/i18n'
 
 declare global {
   interface Window {
@@ -30,12 +32,25 @@ export const colorOfIndex = (index: number): number => CATEGORY_COLORS[CATEGORIE
 
 export const cssColor = (hex: number): string => `#${hex.toString(16).padStart(6, '0')}`
 
-const countFormat = new Intl.NumberFormat('pl-PL')
-const decimalFormat = new Intl.NumberFormat('pl-PL', { maximumFractionDigits: 1 })
-const dateFormat = new Intl.DateTimeFormat('pl-PL', { dateStyle: 'medium', timeStyle: 'short' })
+const LOCALES: Record<Language, string> = { en: 'en-GB', pl: 'pl-PL' }
 
-export const formatCount = (value: number): string => countFormat.format(value)
-export const formatDate = (ms: number): string => dateFormat.format(ms)
+function createFormats(language: Language) {
+  const locale = LOCALES[language]
+  return {
+    count: new Intl.NumberFormat(locale),
+    decimal: new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }),
+    date: new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }),
+  }
+}
+
+let formats = createFormats(DEFAULT_LANGUAGE)
+
+export function setFormatLanguage(language: Language): void {
+  formats = createFormats(language)
+}
+
+export const formatCount = (value: number): string => formats.count.format(value)
+export const formatDate = (ms: number): string => formats.date.format(ms)
 
 export function formatBytes(bytes: number): string {
   const units = ['B', 'KB', 'MB', 'GB', 'TB']
@@ -45,30 +60,7 @@ export function formatBytes(bytes: number): string {
     value /= 1024
     unit++
   }
-  return `${decimalFormat.format(value)} ${units[unit]}`
-}
-
-export const FAILURE_LABELS: Record<MoveFailure, string> = {
-  changed: 'zmieniony po zbudowaniu planu',
-  missing: 'plik już nie istnieje',
-  locked: 'zablokowany przez inny program',
-  collision: 'konflikt nazwy',
-  protected: 'ścieżka chroniona',
-  error: 'błąd',
-}
-
-export const SKIP_LABELS: Record<SkipReason, string> = {
-  'root-is-project': 'wybrany folder jest projektem, więc nie zostanie rozbity',
-  'target-inside-unit': 'folder docelowy leży wewnątrz tego projektu',
-  protected: 'ścieżka chroniona',
-}
-
-export const STATUS_LABELS: Record<SessionStatus, string> = {
-  completed: 'Zakończone',
-  cancelled: 'Anulowane',
-  interrupted: 'Przerwane',
-  undone: 'Cofnięte',
-  'partially-undone': 'Cofnięte częściowo',
+  return `${formats.decimal.format(value)} ${units[unit]}`
 }
 
 type FlowListener = (event: FlowEvent) => void

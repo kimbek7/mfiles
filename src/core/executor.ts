@@ -17,6 +17,7 @@ import {
 } from 'node:fs/promises'
 import type { Stats } from 'node:fs'
 import path from 'node:path'
+import { MANIFEST_PREFIXES, outputLabels, UNDO_CONFLICT_DIFFERS } from '../shared/i18n'
 import { Journal, pendingUndo, readJournal } from './journal'
 import type { IntentRecord } from './journal'
 import { isProtectedPath } from './safety'
@@ -24,7 +25,6 @@ import type { EntryKind, Move, MoveFailure, Plan, RunResult, UndoResult } from '
 import { errorCode, hashFile } from './util'
 
 export const TEMP_SUFFIX = '.mfiles-tmp'
-const MANIFEST_PREFIX = '_Spis-'
 
 export type Step =
   | 'intent'
@@ -153,7 +153,7 @@ async function moveFileAcrossVolumes(from: string, to: string, ctx: MoveContext)
     await ctx.hook('copied')
     const copy = await lstat(temp)
     if (copy.size !== source.size || (await hashFile(from)) !== (await hashFile(temp))) {
-      throw new Error('Kopia różni się od oryginału')
+      throw new Error('Copy differs from the original')
     }
     await utimes(temp, source.atime, source.mtime)
     await ctx.rename(temp, to)
@@ -179,7 +179,7 @@ async function moveFolderAcrossVolumes(from: string, to: string, ctx: MoveContex
       verbatimSymlinks: true,
     })
     await ctx.hook('copied')
-    if (!(await treesMatch(from, temp))) throw new Error('Kopia różni się od oryginału')
+    if (!(await treesMatch(from, temp))) throw new Error('Copy differs from the original')
     await ctx.rename(temp, to)
   } catch (err) {
     if (!(err instanceof SimulatedCrash)) await rm(temp, { recursive: true, force: true })
@@ -244,8 +244,7 @@ function isFresh(stat: Stats | null, move: Move): MoveFailure | null {
 
 const csvField = (value: string | number): string => `"${String(value).replaceAll('"', '""')}"`
 
-function manifestContent(rows: { move: Move; to: string }[]): string {
-  const header = ['Skąd', 'Dokąd', 'Grupa', 'Rozmiar (bajty)', 'Data modyfikacji']
+function manifestContent(rows: { move: Move; to: string }[], header: string[]): string {
   const lines = rows.map(({ move, to }) =>
     [move.from, to, move.group, move.size, new Date(move.mtimeMs).toISOString()].map(csvField).join(';'),
   )
@@ -327,11 +326,12 @@ export async function executePlan(plan: Plan, options: ExecuteOptions): Promise<
     }
 
     if (movedRows.length > 0) {
-      const manifest = path.join(plan.options.targetRoot, `${MANIFEST_PREFIX}${sessionId}.csv`)
+      const labels = outputLabels(plan.options.language)
+      const manifest = path.join(plan.options.targetRoot, `${labels.manifestPrefix}${sessionId}.csv`)
       await journal.write({ t: 'manifest', path: manifest }, true)
       await options.hook?.('manifest', plan.moves.length)
       try {
-        await writeFile(manifest, manifestContent(movedRows), { flag: 'wx' })
+        await writeFile(manifest, manifestContent(movedRows, labels.manifestHeader), { flag: 'wx' })
         result.manifest = manifest
       } catch {
         // The manifest is a convenience: losing it does not change the result, and the journal has the full data.
@@ -429,7 +429,7 @@ export async function undoSession(sessionId: string, options: UndoOptions): Prom
           continue
         }
         if (status === 'conflict') {
-          result.conflicts.push({ from: intent.from, to: intent.to, reason: 'Oba pliki istnieją i się różnią' })
+          result.conflicts.push({ from: intent.from, to: intent.to, reason: UNDO_CONFLICT_DIFFERS })
           continue
         }
         if (status === 'needs-move') {
@@ -451,8 +451,9 @@ export async function undoSession(sessionId: string, options: UndoOptions): Prom
       }
     }
 
-    if (state.manifest && path.basename(state.manifest).startsWith(MANIFEST_PREFIX)) {
-      await rm(state.manifest, { force: true })
+    const manifest = state.manifest
+    if (manifest && MANIFEST_PREFIXES.some((prefix) => path.basename(manifest).startsWith(prefix))) {
+      await rm(manifest, { force: true })
     }
 
     const createdDirs = [...new Set(state.intents.flatMap((r) => r.dirs))].sort((a, b) => b.length - a.length)

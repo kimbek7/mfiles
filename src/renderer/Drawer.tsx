@@ -1,21 +1,17 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { CATEGORY_LABELS } from '../core/types'
 import type { DuplicateGroup, FolderDecision } from '../core/types'
 import type { PlanFile } from '../shared/api'
 import type { DrawerTarget } from './App'
 import { api, formatBytes, formatCount } from './lib'
 import { useApp } from './store'
+import { useT } from './useT'
 
 const PAGE_SIZE = 200
-
-const DECISIONS: { id: FolderDecision; label: string; hint: string }[] = [
-  { id: 'whole', label: 'W całości', hint: 'Folder trafi do Tematy bez zmian w środku' },
-  { id: 'keep', label: 'Zostaw', hint: 'Folder pozostanie tam, gdzie jest' },
-  { id: 'split', label: 'Rozbij', hint: 'Pliki zostaną pogrupowane, a podfoldery ocenione osobno' },
-]
+const DECISIONS: FolderDecision[] = ['whole', 'keep', 'split']
 
 function Topics(): React.JSX.Element {
+  const { t, plural, labels } = useT()
   const topics = useApp((s) => s.plan?.topics ?? [])
   const setFolderDecision = useApp((s) => s.setFolderDecision)
   const scroller = useRef<HTMLDivElement>(null)
@@ -37,19 +33,19 @@ function Topics(): React.JSX.Element {
               <div className="topic-text">
                 <strong title={topic.path}>{topic.relative}</strong>
                 <small>
-                  {formatCount(topic.files)} · {formatBytes(topic.bytes)} ·{' '}
-                  {topic.categories.map((c) => CATEGORY_LABELS[c]).join(', ')}
+                  {plural('files', topic.files)} · {formatBytes(topic.bytes)} ·{' '}
+                  {topic.categories.map((c) => labels.categories[c]).join(', ')}
                 </small>
               </div>
-              <div className="seg" role="group" aria-label={`Decyzja dla ${topic.relative}`}>
-                {DECISIONS.map(({ id, label, hint }) => (
+              <div className="seg" role="group" aria-label={t('decision.group', { folder: topic.relative })}>
+                {DECISIONS.map((id) => (
                   <button
                     key={id}
-                    title={hint}
+                    title={t(`decision.${id}.hint`, { folder: labels.categories.topics })}
                     aria-pressed={topic.decision === id}
                     onClick={() => void setFolderDecision(topic.path, id)}
                   >
-                    {label}
+                    {t(`decision.${id}`)}
                   </button>
                 ))}
               </div>
@@ -125,6 +121,7 @@ function GroupFiles({ planId, group }: { planId: string; group: string | null })
 }
 
 function Duplicates(): React.JSX.Element {
+  const { t } = useT()
   const rebuildPlan = useApp((s) => s.rebuildPlan)
   const [groups, setGroups] = useState<DuplicateGroup[]>([])
   const [total, setTotal] = useState(0)
@@ -167,7 +164,7 @@ function Duplicates(): React.JSX.Element {
       ))}
       {groups.length < total && (
         <button className="btn ghost" onClick={() => void loadMore(groups.length)}>
-          Pokaż kolejne
+          {t('drawer.more')}
         </button>
       )}
     </div>
@@ -175,6 +172,7 @@ function Duplicates(): React.JSX.Element {
 }
 
 export function Drawer({ target, onClose }: { target: DrawerTarget; onClose: () => void }): React.JSX.Element {
+  const { t } = useT()
   const plan = useApp((s) => s.plan)
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
@@ -187,16 +185,16 @@ export function Drawer({ target, onClose }: { target: DrawerTarget; onClose: () 
   if (!target || !plan) return <></>
   const title =
     target.kind === 'group'
-      ? (target.group ?? 'Wszystkie pliki')
+      ? (target.group ?? t('drawer.allFiles'))
       : target.kind === 'topics'
-        ? 'Foldery tematyczne: co zrobić z każdym z nich?'
-        : 'Który egzemplarz zostaje?'
+        ? t('drawer.topics')
+        : t('drawer.duplicates')
   return (
-    <section className="drawer" aria-label="Szczegóły">
+    <section className="drawer" aria-label={t('drawer.details')}>
       <header>
         <strong>{title}</strong>
         <button className="btn ghost" onClick={onClose}>
-          Zamknij
+          {t('common.close')}
         </button>
       </header>
       {target.kind === 'group' && <GroupFiles planId={plan.id} group={target.group} />}

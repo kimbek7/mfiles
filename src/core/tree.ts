@@ -1,5 +1,4 @@
 import path from 'node:path'
-import { CATEGORY_LABELS } from './types'
 import type { Category, FileEntry, TreeTile } from './types'
 
 interface DirNode {
@@ -74,6 +73,7 @@ export class TreeIndex {
       tiles.push({
         path: child.path,
         label: path.basename(child.path),
+        kind: 'dir',
         bytes: child.bytes,
         files: child.files,
         isDir: true,
@@ -84,6 +84,7 @@ export class TreeIndex {
       tiles.push({
         path: unit.path,
         label: unit.name,
+        kind: 'unit',
         bytes: unit.size,
         files: 1,
         isDir: false,
@@ -93,7 +94,9 @@ export class TreeIndex {
     for (const [category, bytes] of Object.entries(node.looseBytes) as [Category, number][]) {
       tiles.push({
         path: `${node.path}${path.sep}*${category}`,
-        label: CATEGORY_LABELS[category],
+        label: '',
+        kind: 'loose',
+        category,
         bytes,
         files: node.looseFiles[category] ?? 0,
         isDir: false,
@@ -106,7 +109,9 @@ export class TreeIndex {
     const rest = tiles.slice(limit - 1)
     const merged: TreeTile = {
       path: `${node.path}${path.sep}*rest`,
-      label: `Pozostałe (${rest.length})`,
+      label: '',
+      kind: 'rest',
+      restCount: rest.length,
       bytes: 0,
       files: 0,
       isDir: false,

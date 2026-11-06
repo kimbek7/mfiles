@@ -1,7 +1,9 @@
 import { create } from 'zustand'
 import type { Dimension, FolderDecision, RunResult, SessionSummary, TreeTile, UndoResult } from '../core/types'
 import type { DriveInfo, FlowEvent, PlanView, ScanProgress, TileView, UndoProgress, WorkerEvent } from '../shared/api'
-import { api, flowBus } from './lib'
+import { DEFAULT_LANGUAGE, LANGUAGES, localizeError, outputLabels } from '../shared/i18n'
+import type { Language } from '../shared/i18n'
+import { api, flowBus, setFormatLanguage } from './lib'
 
 export type Stage = 'start' | 'scan' | 'plan' | 'run' | 'summary'
 
@@ -13,6 +15,7 @@ interface PlanSettings {
 }
 
 interface AppState {
+  language: Language
   stage: Stage
   root: string
   error: string | null
@@ -28,6 +31,7 @@ interface AppState {
   undoing: UndoProgress | null
   undoResult: UndoResult | null
   init(): Promise<void>
+  setLanguage(language: Language): Promise<void>
   loadSessions(): Promise<void>
   startScan(root: string): Promise<void>
   cancel(): Promise<void>
@@ -44,7 +48,24 @@ interface AppState {
   dismissError(): void
 }
 
-const TARGET_DIR = '_Posortowane'
+const LANGUAGE_KEY = 'mfiles.language'
+
+function loadLanguage(): Language {
+  try {
+    const stored = localStorage.getItem(LANGUAGE_KEY) as Language | null
+    return stored && LANGUAGES.includes(stored) ? stored : DEFAULT_LANGUAGE
+  } catch {
+    return DEFAULT_LANGUAGE
+  }
+}
+
+function saveLanguage(language: Language): void {
+  try {
+    localStorage.setItem(LANGUAGE_KEY, language)
+  } catch {
+    // The choice just will not survive a restart.
+  }
+}
 
 function joinPath(root: string, name: string): string {
   return root.endsWith('\\') ? `${root}${name}` : `${root}\\${name}`
@@ -55,7 +76,7 @@ export const useApp = create<AppState>((set, get) => {
     try {
       await work()
     } catch (err) {
-      set({ error: (err as Error).message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '') })
+      set({ error: localizeError((err as Error).message, get().language) })
     }
   }
 
@@ -68,7 +89,12 @@ export const useApp = create<AppState>((set, get) => {
     }
   }
 
+  const initialLanguage = loadLanguage()
+  setFormatLanguage(initialLanguage)
+  document.documentElement.lang = initialLanguage
+
   return {
+    language: initialLanguage,
     stage: 'start',
     root: '',
     error: null,
@@ -91,6 +117,22 @@ export const useApp = create<AppState>((set, get) => {
         await get().loadSessions()
       }),
 
+    setLanguage: async (language) => {
+      const { language: previous, root, settings, stage } = get()
+      if (language === previous) return
+      saveLanguage(language)
+      setFormatLanguage(language)
+      document.documentElement.lang = language
+      const usesDefaultTarget = settings.targetRoot === joinPath(root, outputLabels(previous).targetDir)
+      set({
+        language,
+        settings: usesDefaultTarget
+          ? { ...settings, targetRoot: joinPath(root, outputLabels(language).targetDir) }
+          : settings,
+      })
+      if (stage === 'plan') await get().rebuildPlan()
+    },
+
     loadSessions: () =>
       guard(async () => {
         set({ sessions: await api().call('sessions') })
@@ -109,7 +151,11 @@ export const useApp = create<AppState>((set, get) => {
           flow: null,
           run: null,
           undoResult: null,
-          settings: { ...get().settings, targetRoot: joinPath(trimmed, TARGET_DIR), folderDecisions: {} },
+          settings: {
+            ...get().settings,
+            targetRoot: joinPath(trimmed, outputLabels(get().language).targetDir),
+            folderDecisions: {},
+          },
         })
         try {
           await api().call('scan', trimmed)
@@ -148,7 +194,7 @@ export const useApp = create<AppState>((set, get) => {
 
     rebuildPlan: () =>
       guard(async () => {
-        set({ plan: await api().call('plan', get().settings) })
+        set({ plan: await api().call('plan', { ...get().settings, language: get().language }) })
       }),
 
     simulate: () =>

@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto'
 import path from 'node:path'
-import { analyzeContext, TOPICS_DIR } from './context'
-import { DUPLICATES_DIR, duplicateSegments } from './duplicates'
+import { outputLabels, SORTED_DIR_NAMES } from '../shared/i18n'
+import type { OutputLabels } from '../shared/i18n'
+import { analyzeContext } from './context'
+import { duplicateSegments } from './duplicates'
 import { isProtectedPath, isWithin, samePath } from './safety'
-import { CATEGORY_LABELS } from './types'
 import type {
   BucketSummary,
   Dimension,
@@ -17,18 +18,15 @@ import type {
   PlanSkip,
 } from './types'
 
-export const DEFAULT_TARGET_DIR = '_Posortowane'
-export const LOOSE_ORIGIN_LABEL = '(luźne pliki)'
-
 const MB = 1024 * 1024
 const GB = 1024 * MB
 const SIDECAR_EXTS = new Set(['srt', 'sub', 'vtt', 'ass', 'lrc', 'xmp', 'aae', 'cue'])
 
-export function sizeBucket(size: number): string {
-  if (size < MB) return 'Poniżej 1 MB'
-  if (size < 100 * MB) return '1–100 MB'
-  if (size < GB) return '100 MB–1 GB'
-  return 'Powyżej 1 GB'
+export function sizeBucket(size: number, labels: OutputLabels = outputLabels()): string {
+  if (size < MB) return labels.sizes[0]
+  if (size < 100 * MB) return labels.sizes[1]
+  if (size < GB) return labels.sizes[2]
+  return labels.sizes[3]
 }
 
 function entryDate(entry: FileEntry): Date | null {
@@ -36,22 +34,26 @@ function entryDate(entry: FileEntry): Date | null {
   return ms > 0 ? new Date(ms) : null
 }
 
-export function segmentsFor(entry: FileEntry, dimensions: Dimension[]): string[] {
+export function segmentsFor(
+  entry: FileEntry,
+  dimensions: Dimension[],
+  labels: OutputLabels = outputLabels(),
+): string[] {
   const date = entryDate(entry)
-  const year = date ? String(date.getFullYear()) : 'Bez daty'
-  const month = date ? String(date.getMonth() + 1).padStart(2, '0') : 'Bez daty'
+  const year = date ? String(date.getFullYear()) : labels.noDate
+  const month = date ? String(date.getMonth() + 1).padStart(2, '0') : labels.noDate
   const hasYearBefore = (index: number): boolean => dimensions.slice(0, index).includes('year')
 
   return dimensions.map((dimension, index) => {
     switch (dimension) {
       case 'type':
-        return CATEGORY_LABELS[entry.category]
+        return labels.categories[entry.category]
       case 'year':
         return year
       case 'month':
         return hasYearBefore(index) || !date ? month : `${year}-${month}`
       case 'size':
-        return sizeBucket(entry.size)
+        return sizeBucket(entry.size, labels)
     }
   })
 }
@@ -65,10 +67,10 @@ function uniqueTarget(target: string, kind: FileEntry['kind'], taken: Set<string
   return candidate
 }
 
-function originLabel(root: string, entry: FileEntry): string {
+function originLabel(root: string, entry: FileEntry, labels: OutputLabels): string {
   const relative = path.relative(root, path.dirname(entry.path))
   if (relative && !relative.startsWith('..')) return relative.split(path.sep)[0]
-  return entry.kind === 'unit' ? entry.name : LOOSE_ORIGIN_LABEL
+  return entry.kind === 'unit' ? entry.name : labels.looseOrigin
 }
 
 function stemKey(dir: string, stem: string): string {
@@ -151,9 +153,12 @@ export function buildPlan(
 ): Plan {
   const dimensions: Dimension[] = options.dimensions.length > 0 ? options.dimensions : ['type']
   const { root, targetRoot } = options
-  const isSorted = memoizeByFolder((p) => isWithin(targetRoot, p))
+  const labels = outputLabels(options.language)
+  const sortedRoots = [targetRoot, ...SORTED_DIR_NAMES.map((name) => path.join(root, name))]
+  const inSortedRoot = (p: string): boolean => sortedRoots.some((sorted) => isWithin(sorted, p))
+  const isSorted = memoizeByFolder(inSortedRoot)
   const isProtectedFile = memoizeByFolder(isProtectedPath)
-  const unsorted = entries.filter((e) => !(e.kind === 'unit' ? isWithin(targetRoot, e.path) : isSorted(e.path)))
+  const unsorted = entries.filter((e) => !(e.kind === 'unit' ? inSortedRoot(e.path) : isSorted(e.path)))
   const alreadySorted = entries.length - unsorted.length
   const targetProtected = isProtectedPath(targetRoot)
 
@@ -169,7 +174,7 @@ export function buildPlan(
   const originTotals = new Map<string, OriginSummary>()
   const moveOrigins: string[] = []
   const placed = new Map<string, { segments: string[]; to: string }>()
-  const fileOrigin = memoizeByFolder((p) => originLabel(root, { path: p, kind: 'file' } as FileEntry))
+  const fileOrigin = memoizeByFolder((p) => originLabel(root, { path: p, kind: 'file' } as FileEntry, labels))
   let totalBytes = 0
 
   const place = (entry: FileEntry, segments: string[], name: string = entry.name): void => {
@@ -177,7 +182,7 @@ export function buildPlan(
     const to = uniqueTarget(path.join(targetRoot, ...segments, name), entry.kind, taken)
     const group = segments.join('/')
     const bucketLabel = segments[0]
-    const origin = entry.kind === 'unit' ? originLabel(root, entry) : fileOrigin(entry.path)
+    const origin = entry.kind === 'unit' ? originLabel(root, entry, labels) : fileOrigin(entry.path)
     placed.set(entry.path, { segments, to })
 
     const groupTotal = groupTotals.get(group) ?? { key: group, count: 0, bytes: 0 }
@@ -190,9 +195,9 @@ export function buildPlan(
       count: 0,
       bytes: 0,
       category:
-        bucketLabel === TOPICS_DIR
+        bucketLabel === labels.categories.topics
           ? 'topics'
-          : dimensions[0] === 'type' && bucketLabel !== DUPLICATES_DIR
+          : dimensions[0] === 'type' && bucketLabel !== labels.duplicates
             ? entry.category
             : null,
     }
@@ -223,8 +228,8 @@ export function buildPlan(
   }
 
   const standardSegments = (entry: FileEntry): string[] => {
-    if (extraCopies.has(entry.path)) return duplicateSegments(entry)
-    return entry.category === 'topics' ? [TOPICS_DIR] : segmentsFor(entry, dimensions)
+    if (extraCopies.has(entry.path)) return duplicateSegments(entry, labels)
+    return entry.category === 'topics' ? [labels.categories.topics] : segmentsFor(entry, dimensions, labels)
   }
 
   const followers: { entry: FileEntry; lead: FileEntry }[] = []
@@ -253,7 +258,7 @@ export function buildPlan(
   }
   for (const entry of companions) {
     const target = placed.get(entry.companionOf as string)
-    place(entry, target?.segments ?? [TOPICS_DIR])
+    place(entry, target?.segments ?? [labels.categories.topics])
   }
 
   const buckets = [...bucketTotals.values()].sort((a, b) => b.bytes - a.bytes)

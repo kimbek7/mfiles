@@ -73,6 +73,7 @@ interface Flight {
 export interface SceneCallbacks {
   onHover(tile: TreeTile | null, x: number, y: number): void
   onOpen(tile: TreeTile): void
+  restLabel(count: number): string
 }
 
 function layout(items: { key: string; bytes: number }[], area: Rect, padding: number): Map<string, Rect> {
@@ -273,7 +274,7 @@ export class SceneController {
       originItems.push({
         key: String(shownOrigins.length),
         bytes: restOrigins.reduce((sum, o) => sum + o.bytes, 0),
-        label: `Pozostałe (${restOrigins.length})`,
+        label: this.callbacks.restLabel(restOrigins.length),
       })
     }
     const rects = layout(originItems, originArea, 3)
@@ -293,7 +294,7 @@ export class SceneController {
     }))
     if (restBuckets.length > 0) {
       rowItems.push({
-        label: `Pozostałe (${restBuckets.length})`,
+        label: this.callbacks.restLabel(restBuckets.length),
         count: restBuckets.reduce((sum, b) => sum + b.count, 0),
         bytes: restBuckets.reduce((sum, b) => sum + b.bytes, 0),
         color: CATEGORY_COLORS.other,

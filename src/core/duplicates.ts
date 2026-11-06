@@ -1,4 +1,4 @@
-import { CATEGORY_LABELS } from './types'
+import type { OutputLabels } from '../shared/i18n'
 import type { DuplicateGroup, FileEntry } from './types'
 import { forEachLimit, hashFile } from './util'
 
@@ -87,8 +87,6 @@ export async function findDuplicates(entries: FileEntry[], options: DuplicateOpt
   return result.sort((a, b) => b.size * (b.paths.length - 1) - a.size * (a.paths.length - 1))
 }
 
-export const DUPLICATES_DIR = '_Duplikaty'
-
-export function duplicateSegments(entry: FileEntry): string[] {
-  return [DUPLICATES_DIR, CATEGORY_LABELS[entry.category]]
+export function duplicateSegments(entry: FileEntry, labels: OutputLabels): string[] {
+  return [labels.duplicates, labels.categories[entry.category]]
 }

@@ -4,10 +4,13 @@ import { describe, expect, it } from 'vitest'
 import { analyzeContext, isGenericFolderName } from '../../src/core/context'
 import { executePlan, undoSession } from '../../src/core/executor'
 import { findDuplicates } from '../../src/core/duplicates'
-import { buildPlan, DEFAULT_TARGET_DIR } from '../../src/core/planner'
+import { buildPlan } from '../../src/core/planner'
+import { outputLabels } from '../../src/shared/i18n'
 import { emptyStats, scan } from '../../src/core/scanner'
 import type { FileEntry, FolderDecision, Plan } from '../../src/core/types'
 import { snapshot, tempDir, writeTree } from './helpers'
+
+const DEFAULT_TARGET_DIR = outputLabels('pl').targetDir
 
 function entry(relative: string, root = 'C:\\r', size = 10): FileEntry {
   const full = path.join(root, relative)
@@ -23,6 +26,7 @@ function plan(entries: FileEntry[], decisions?: Record<string, FolderDecision>, 
     dimensions: ['type'],
     separateDuplicates: true,
     folderDecisions: decisions,
+    language: 'pl',
   })
 }
 
@@ -154,6 +158,7 @@ describe('sorting with topics on disk', () => {
       targetRoot: path.join(root, DEFAULT_TARGET_DIR),
       dimensions: ['type', 'year'],
       separateDuplicates: true,
+      language: 'pl',
     })
   }
 

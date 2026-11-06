@@ -1,3 +1,5 @@
+import type { Language } from '../shared/i18n'
+
 export const CATEGORIES = [
   'documents',
   'spreadsheets',
@@ -15,22 +17,6 @@ export const CATEGORIES = [
 ] as const
 
 export type Category = (typeof CATEGORIES)[number]
-
-export const CATEGORY_LABELS: Record<Category, string> = {
-  documents: 'Dokumenty',
-  spreadsheets: 'Arkusze',
-  presentations: 'Prezentacje',
-  pdf: 'PDF',
-  images: 'Zdjęcia',
-  video: 'Wideo',
-  audio: 'Audio',
-  archives: 'Archiwa',
-  code: 'Kod',
-  installers: 'Instalatory',
-  projects: 'Projekty',
-  topics: 'Tematy',
-  other: 'Inne',
-}
 
 export type EntryKind = 'file' | 'unit'
 
@@ -77,6 +63,7 @@ export interface PlanOptions {
   dimensions: Dimension[]
   separateDuplicates: boolean
   folderDecisions?: Record<string, FolderDecision>
+  language?: Language
 }
 
 export interface TopicInfo {
@@ -174,7 +161,11 @@ export interface UndoResult {
 
 export interface TreeTile {
   path: string
+  /** Real name of a folder or project; `loose` and `rest` tiles get theirs from the UI language. */
   label: string
+  kind: 'dir' | 'unit' | 'loose' | 'rest'
+  category?: Category
+  restCount?: number
   bytes: number
   files: number
   isDir: boolean

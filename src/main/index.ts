@@ -3,6 +3,7 @@ import path from 'node:path'
 import { Worker } from 'node:worker_threads'
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import { WORKER_METHODS } from '../shared/api'
+import { AppError } from '../shared/i18n'
 import type { DriveInfo, WorkerApi, WorkerEvent, WorkerReply, WorkerRequest } from '../shared/api'
 
 if (process.env.MFILES_USER_DATA) app.setPath('userData', process.env.MFILES_USER_DATA)
@@ -59,11 +60,11 @@ async function listDrives(): Promise<DriveInfo[]> {
 
 function registerIpc(): void {
   ipcMain.handle('mfiles:call', (_event, method: keyof WorkerApi, args: unknown[]) => {
-    if (!WORKER_METHODS.includes(method) || !Array.isArray(args)) throw new Error('Nieznana operacja')
+    if (!WORKER_METHODS.includes(method) || !Array.isArray(args)) throw new AppError('unknownOperation')
     return callWorker(method, args)
   })
-  ipcMain.handle('mfiles:pickFolder', async () => {
-    const options = { title: 'Wybierz folder do uporządkowania', properties: ['openDirectory' as const] }
+  ipcMain.handle('mfiles:pickFolder', async (_event, title: unknown) => {
+    const options = { title: String(title), properties: ['openDirectory' as const] }
     const result = window ? await dialog.showOpenDialog(window, options) : await dialog.showOpenDialog(options)
     return result.canceled ? null : result.filePaths[0]
   })

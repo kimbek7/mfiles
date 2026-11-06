@@ -1,24 +1,13 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useRef, useState } from 'react'
+import { UNDO_CONFLICT_DIFFERS } from '../shared/i18n'
 import type { Dimension } from '../core/types'
 import type { DrawerTarget } from './App'
-import { api, FAILURE_LABELS, formatBytes, formatCount, SKIP_LABELS } from './lib'
+import { api, formatBytes, formatCount } from './lib'
 import { useApp } from './store'
+import { useT } from './useT'
 
-const PHASE_LABELS = {
-  walk: 'Czytam strukturę folderów',
-  enrich: 'Rozpoznaję zawartość plików',
-  duplicates: 'Szukam duplikatów',
-  done: 'Skan zakończony',
-  cancelled: 'Skan przerwany',
-} as const
-
-const DIMENSIONS: { id: Dimension; label: string }[] = [
-  { id: 'type', label: 'Typ' },
-  { id: 'year', label: 'Rok' },
-  { id: 'month', label: 'Miesiąc' },
-  { id: 'size', label: 'Rozmiar' },
-]
+const DIMENSIONS: Dimension[] = ['type', 'year', 'month', 'size']
 
 const isDriveRoot = (p: string): boolean => /^[A-Za-z]:\\?$/.test(p.trim())
 
@@ -37,6 +26,7 @@ function Meter({ value, total }: { value: number; total: number }): React.JSX.El
 }
 
 export function ScanPanel(): React.JSX.Element {
+  const { t } = useT()
   const scan = useApp((s) => s.scan)
   const cancel = useApp((s) => s.cancel)
   const goToPlan = useApp((s) => s.goToPlan)
@@ -47,58 +37,59 @@ export function ScanPanel(): React.JSX.Element {
   return (
     <>
       <div className="panel-body">
-        <h2 data-testid="scan-phase">{PHASE_LABELS[phase]}</h2>
+        <h2 data-testid="scan-phase">{t(`scan.${phase}`)}</h2>
         {scan && scan.total > 0 && phase !== 'done' && <Meter value={scan.done} total={scan.total} />}
         <dl className="stats">
           <div>
-            <dt>Pliki</dt>
+            <dt>{t('scan.files')}</dt>
             <dd>{formatCount(scan?.stats.files ?? 0)}</dd>
           </div>
           <div>
-            <dt>Rozmiar</dt>
+            <dt>{t('scan.size')}</dt>
             <dd>{formatBytes(scan?.stats.bytes ?? 0)}</dd>
           </div>
           <div>
-            <dt>Foldery</dt>
+            <dt>{t('scan.folders')}</dt>
             <dd>{formatCount(scan?.stats.dirs ?? 0)}</dd>
           </div>
           <div>
-            <dt>Projekty</dt>
+            <dt>{t('scan.projects')}</dt>
             <dd>{formatCount(scan?.stats.units ?? 0)}</dd>
           </div>
         </dl>
-        {scan?.cloud && (
-          <p className="note warn">Ten folder leży w OneDrive. Pomijam czytanie zawartości, żeby nie pobierać plików z chmury.</p>
-        )}
+        {scan?.cloud && <p className="note warn">{t('scan.cloud')}</p>}
         {scan && scan.duplicateGroups > 0 && (
           <p className="note">
-            Duplikaty: {formatCount(scan.duplicateGroups)} grup, do odzyskania {formatBytes(scan.duplicateBytes)}.
+            {t('scan.duplicatesFound', {
+              groups: formatCount(scan.duplicateGroups),
+              bytes: formatBytes(scan.duplicateBytes),
+            })}
           </p>
         )}
         {scan && scan.mismatched > 0 && (
-          <p className="note">Pliki z rozszerzeniem niezgodnym z zawartością: {formatCount(scan.mismatched)}.</p>
+          <p className="note">{t('scan.mismatched', { count: formatCount(scan.mismatched) })}</p>
         )}
         {scan && scan.stats.errors > 0 && (
-          <p className="note warn">Pominięto niedostępne elementy: {formatCount(scan.stats.errors)}.</p>
+          <p className="note warn">{t('scan.errors', { count: formatCount(scan.stats.errors) })}</p>
         )}
         {scan && scan.stats.skippedLinks > 0 && (
-          <p className="note">Pominięte dowiązania: {formatCount(scan.stats.skippedLinks)}.</p>
+          <p className="note">{t('scan.links', { count: formatCount(scan.stats.skippedLinks) })}</p>
         )}
       </div>
       <div className="panel-foot">
         {!finished && (
           <button className="btn" onClick={() => void cancel()}>
-            Przerwij skan
+            {t('scan.stop')}
           </button>
         )}
         {phase === 'done' && (
           <button className="btn primary" onClick={() => void goToPlan()}>
-            Zaplanuj porządek
+            {t('scan.toPlan')}
           </button>
         )}
         {phase === 'cancelled' && (
           <button className="btn" onClick={backToStart}>
-            Wróć
+            {t('scan.back')}
           </button>
         )}
       </div>
@@ -142,6 +133,7 @@ function GroupList({ onOpen }: { onOpen: (target: DrawerTarget) => void }): Reac
 }
 
 function ConfirmDialog({ onClose }: { onClose: () => void }): React.JSX.Element {
+  const { t, plural } = useT()
   const plan = useApp((s) => s.plan)
   const root = useApp((s) => s.root)
   const execute = useApp((s) => s.execute)
@@ -151,20 +143,17 @@ function ConfirmDialog({ onClose }: { onClose: () => void }): React.JSX.Element 
   return (
     <div className="modal-back">
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
-        <h2 id="confirm-title">Przenieść {formatCount(plan.moveCount)} elementów?</h2>
-        <p>
-          {formatBytes(plan.totalBytes)} trafi do <span className="mono">{plan.options.targetRoot}</span>. Żaden plik nie
-          zostanie usunięty ani nadpisany, a całość można cofnąć.
-        </p>
+        <h2 id="confirm-title">{t('confirm.title', { items: plural('items', plan.moveCount) })}</h2>
+        <p>{t('confirm.body', { bytes: formatBytes(plan.totalBytes), target: plan.options.targetRoot })}</p>
         {wholeDrive && (
           <label className="check">
             <input type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)} />
-            Rozumiem, że porządkuję cały dysk {root}
+            {t('confirm.drive', { root })}
           </label>
         )}
         <div className="modal-actions">
           <button className="btn" onClick={onClose}>
-            Anuluj
+            {t('common.cancel')}
           </button>
           <button
             className="btn primary"
@@ -174,7 +163,7 @@ function ConfirmDialog({ onClose }: { onClose: () => void }): React.JSX.Element 
               void execute()
             }}
           >
-            Przenieś pliki
+            {t('confirm.action')}
           </button>
         </div>
       </div>
@@ -183,6 +172,7 @@ function ConfirmDialog({ onClose }: { onClose: () => void }): React.JSX.Element 
 }
 
 export function PlanPanel({ onOpen }: { onOpen: (target: DrawerTarget) => void }): React.JSX.Element {
+  const { t, plural, labels } = useT()
   const plan = useApp((s) => s.plan)
   const scan = useApp((s) => s.scan)
   const settings = useApp((s) => s.settings)
@@ -200,22 +190,25 @@ export function PlanPanel({ onOpen }: { onOpen: (target: DrawerTarget) => void }
   }
 
   const pickTarget = async (): Promise<void> => {
-    const folder = await api().pickFolder()
+    const folder = await api().pickFolder(t('plan.target'))
     if (folder) void updateSettings({ targetRoot: folder })
   }
+
+  const countDecision = (decision: 'whole' | 'keep' | 'split'): string =>
+    formatCount(plan?.topics.filter((topic) => topic.decision === decision).length ?? 0)
 
   return (
     <>
       <div className="panel-body">
         <div>
-          <h3 className="section-title">Grupuj wg (kolejność ma znaczenie)</h3>
+          <h3 className="section-title">{t('plan.groupBy')}</h3>
           <div className="chips">
-            {DIMENSIONS.map(({ id, label }) => {
+            {DIMENSIONS.map((id) => {
               const position = settings.dimensions.indexOf(id)
               return (
                 <button className="chip" key={id} aria-pressed={position >= 0} onClick={() => toggle(id)}>
                   {position >= 0 && <i>{position + 1}</i>}
-                  {label}
+                  {t(`dimension.${id}`)}
                 </button>
               )
             })}
@@ -223,27 +216,29 @@ export function PlanPanel({ onOpen }: { onOpen: (target: DrawerTarget) => void }
         </div>
 
         <div>
-          <h3 className="section-title">Folder docelowy</h3>
+          <h3 className="section-title">{t('plan.target')}</h3>
           <div style={{ display: 'flex', gap: 6 }}>
             <input
               className="input mono"
-              aria-label="Folder docelowy"
+              aria-label={t('plan.target')}
               value={settings.targetRoot}
               onChange={(event) => void updateSettings({ targetRoot: event.target.value })}
             />
             <button className="btn" onClick={() => void pickTarget()}>
-              Zmień
+              {t('plan.change')}
             </button>
           </div>
         </div>
 
         {plan && plan.topics.length > 0 && (
           <div>
-            <h3 className="section-title">Kontekst</h3>
+            <h3 className="section-title">{t('plan.context')}</h3>
             <p className="note">
-              W całości: {formatCount(plan.topics.filter((t) => t.decision === 'whole').length)}, zostaje:{' '}
-              {formatCount(plan.topics.filter((t) => t.decision === 'keep').length)}, rozbite:{' '}
-              {formatCount(plan.topics.filter((t) => t.decision === 'split').length)}.
+              {t('plan.contextSummary', {
+                whole: countDecision('whole'),
+                keep: countDecision('keep'),
+                split: countDecision('split'),
+              })}
             </p>
             <button
               className="btn ghost"
@@ -251,7 +246,7 @@ export function PlanPanel({ onOpen }: { onOpen: (target: DrawerTarget) => void }
               data-testid="open-topics"
               onClick={() => onOpen({ kind: 'topics' })}
             >
-              Foldery tematyczne ({formatCount(plan.topics.length)})
+              {t('plan.topicFolders', { count: formatCount(plan.topics.length) })}
             </button>
           </div>
         )}
@@ -264,10 +259,13 @@ export function PlanPanel({ onOpen }: { onOpen: (target: DrawerTarget) => void }
                 checked={settings.separateDuplicates}
                 onChange={(event) => void updateSettings({ separateDuplicates: event.target.checked })}
               />
-              Odłóż kopie do _Duplikaty ({formatCount(plan?.duplicateCount ?? 0)})
+              {t('plan.separateDuplicates', {
+                folder: labels.duplicates,
+                count: formatCount(plan?.duplicateCount ?? 0),
+              })}
             </label>
             <button className="btn ghost" style={{ paddingLeft: 0 }} onClick={() => onOpen({ kind: 'duplicates' })}>
-              Wybierz, który egzemplarz zostaje
+              {t('plan.chooseKeeper')}
             </button>
           </div>
         )}
@@ -275,16 +273,16 @@ export function PlanPanel({ onOpen }: { onOpen: (target: DrawerTarget) => void }
         {plan && (
           <dl className="stats">
             <div>
-              <dt>Do przeniesienia</dt>
+              <dt>{t('plan.toMove')}</dt>
               <dd data-testid="plan-count">{formatCount(plan.moveCount)}</dd>
             </div>
             <div>
-              <dt>Rozmiar</dt>
+              <dt>{t('plan.size')}</dt>
               <dd>{formatBytes(plan.totalBytes)}</dd>
             </div>
             {plan.kept > 0 && (
               <div>
-                <dt>Zostaje na miejscu</dt>
+                <dt>{t('plan.kept')}</dt>
                 <dd data-testid="plan-kept">{formatCount(plan.kept)}</dd>
               </div>
             )}
@@ -292,25 +290,28 @@ export function PlanPanel({ onOpen }: { onOpen: (target: DrawerTarget) => void }
         )}
 
         {plan && plan.alreadySorted > 0 && (
-          <p className="note">Już posortowane i pozostawione bez zmian: {formatCount(plan.alreadySorted)}.</p>
+          <p className="note">{t('plan.alreadySorted', { count: formatCount(plan.alreadySorted) })}</p>
         )}
         {plan && plan.skipped.length > 0 && (
           <p className="note warn">
-            Pominięte: {formatCount(plan.skipped.length)}. Pierwszy powód: {SKIP_LABELS[plan.skipped[0].reason]}.
+            {t('plan.skipped', {
+              count: formatCount(plan.skipped.length),
+              reason: t(`skip.${plan.skipped[0].reason}`),
+            })}
           </p>
         )}
         <GroupList onOpen={onOpen} />
       </div>
       <div className="panel-foot">
         <button className="btn" disabled={!plan || plan.moveCount === 0 || simulating} onClick={() => void simulate()}>
-          {simulating ? 'Symulacja trwa…' : 'Pokaż symulację'}
+          {simulating ? t('plan.simulating') : t('plan.simulate')}
         </button>
         <button
           className="btn primary"
           disabled={!plan || plan.moveCount === 0 || simulating}
           onClick={() => setConfirming(true)}
         >
-          Przenieś {formatCount(plan?.moveCount ?? 0)} elementów
+          {t('plan.move', { items: plural('items', plan?.moveCount ?? 0) })}
         </button>
       </div>
       {confirming && <ConfirmDialog onClose={() => setConfirming(false)} />}
@@ -319,6 +320,7 @@ export function PlanPanel({ onOpen }: { onOpen: (target: DrawerTarget) => void }
 }
 
 export function RunPanel(): React.JSX.Element {
+  const { t } = useT()
   const flow = useApp((s) => s.flow)
   const plan = useApp((s) => s.plan)
   const cancel = useApp((s) => s.cancel)
@@ -326,28 +328,28 @@ export function RunPanel(): React.JSX.Element {
   return (
     <>
       <div className="panel-body">
-        <h2>Przenoszę pliki</h2>
+        <h2>{t('run.title')}</h2>
         <Meter value={flow?.done ?? 0} total={total} />
         <dl className="stats">
           <div>
-            <dt>Gotowe</dt>
+            <dt>{t('run.done')}</dt>
             <dd>
               {formatCount(flow?.done ?? 0)} / {formatCount(total)}
             </dd>
           </div>
           <div>
-            <dt>Przeniesiono</dt>
+            <dt>{t('run.moved')}</dt>
             <dd>{formatBytes(flow?.bytes ?? 0)}</dd>
           </div>
           <div>
-            <dt>Pominięte</dt>
+            <dt>{t('run.skipped')}</dt>
             <dd>{formatCount(flow?.failed ?? 0)}</dd>
           </div>
         </dl>
       </div>
       <div className="panel-foot">
         <button className="btn" onClick={() => void cancel()}>
-          Zatrzymaj
+          {t('run.stop')}
         </button>
       </div>
     </>
@@ -355,6 +357,7 @@ export function RunPanel(): React.JSX.Element {
 }
 
 export function SummaryPanel(): React.JSX.Element {
+  const { t } = useT()
   const run = useApp((s) => s.run)
   const plan = useApp((s) => s.plan)
   const root = useApp((s) => s.root)
@@ -367,36 +370,39 @@ export function SummaryPanel(): React.JSX.Element {
   return (
     <>
       <div className="panel-body">
-        <h2 data-testid="summary-title">{run.cancelled ? 'Sortowanie zatrzymane' : 'Gotowe'}</h2>
+        <h2 data-testid="summary-title">{run.cancelled ? t('summary.stopped') : t('summary.done')}</h2>
         <dl className="stats">
           <div>
-            <dt>Przeniesiono</dt>
+            <dt>{t('run.moved')}</dt>
             <dd data-testid="summary-moved">{formatCount(run.moved)}</dd>
           </div>
           <div>
-            <dt>Pominięte</dt>
+            <dt>{t('run.skipped')}</dt>
             <dd>{formatCount(run.failed.length)}</dd>
           </div>
         </dl>
         {undoing && (
           <>
             <p className="note">
-              Cofanie: {formatCount(undoing.done)} z {formatCount(undoing.total)}
+              {t('undo.progress', { done: formatCount(undoing.done), total: formatCount(undoing.total) })}
             </p>
             <Meter value={undoing.done} total={undoing.total} />
           </>
         )}
         {undoResult && (
           <p className="note" data-testid="undo-result">
-            Cofnięto {formatCount(undoResult.restored)}. Konflikty: {formatCount(undoResult.conflicts.length)}, brakujące:{' '}
-            {formatCount(undoResult.lost.length)}.
+            {t('undo.summary', {
+              restored: formatCount(undoResult.restored),
+              conflicts: formatCount(undoResult.conflicts.length),
+              lost: formatCount(undoResult.lost.length),
+            })}
           </p>
         )}
         {undoResult?.conflicts.length ? (
           <ul className="fail-list">
             {undoResult.conflicts.slice(0, 50).map((conflict) => (
               <li key={conflict.to}>
-                {conflict.reason}
+                {conflict.reason === UNDO_CONFLICT_DIFFERS ? t('undo.differs') : conflict.reason}
                 <span className="mono">{conflict.to}</span>
               </li>
             ))}
@@ -404,11 +410,11 @@ export function SummaryPanel(): React.JSX.Element {
         ) : null}
         {run.failed.length > 0 && (
           <div>
-            <h3 className="section-title">Pominięte pliki</h3>
+            <h3 className="section-title">{t('summary.skippedFiles')}</h3>
             <ul className="fail-list">
               {run.failed.slice(0, 100).map((failure) => (
                 <li key={failure.path}>
-                  {FAILURE_LABELS[failure.reason]}
+                  {t(`failure.${failure.reason}`)}
                   <span className="mono">{failure.path}</span>
                 </li>
               ))}
@@ -419,12 +425,12 @@ export function SummaryPanel(): React.JSX.Element {
       <div className="panel-foot">
         {run.manifest && undoResult === null && (
           <button className="btn" onClick={() => void api().reveal(run.manifest as string)}>
-            Pokaż spis zmian (CSV)
+            {t('summary.showManifest')}
           </button>
         )}
         {plan && (
           <button className="btn" onClick={() => void api().reveal(plan.options.targetRoot)}>
-            Pokaż w Eksploratorze
+            {t('summary.showFolder')}
           </button>
         )}
         <button
@@ -432,10 +438,10 @@ export function SummaryPanel(): React.JSX.Element {
           disabled={undoing !== null || undoResult !== null || run.moved === 0}
           onClick={() => void undo(run.sessionId)}
         >
-          Cofnij wszystko
+          {t('summary.undoAll')}
         </button>
         <button className="btn primary" disabled={undoing !== null} onClick={() => void startScan(root)}>
-          Skanuj ponownie
+          {t('summary.rescan')}
         </button>
       </div>
     </>

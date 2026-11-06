@@ -9,7 +9,7 @@ const EXTS = ['pdf', 'jpg', 'mp3', 'mp4', 'zip', 'docx', 'xlsx', 'ts']
 test.skip(FILES === 0, 'Runs only with MFILES_PERF=<file count>')
 
 async function createFiles(root: string): Promise<void> {
-  const dirs = Array.from({ length: 60 }, (_, i) => path.join(root, `folder ${i % 12}`, `sub ${i}`))
+  const dirs = Array.from({ length: 60 }, (_, i) => path.join(root, `New folder (${i % 12})`, `Temp (${i})`))
   await Promise.all(dirs.map((dir) => mkdir(dir, { recursive: true })))
   const chunk = 200
   for (let start = 0; start < FILES; start += chunk) {
@@ -29,7 +29,7 @@ test('scanning and moving many files does not block the interface', async () => 
   const app = await electron.launch({ args: ['.'], env: { ...process.env, MFILES_USER_DATA: userData } })
   try {
     const page = await app.firstWindow()
-    await page.getByLabel('Ścieżka folderu').fill(root)
+    await page.getByLabel('Folder path').fill(root)
 
     const startFrames = (): Promise<void> =>
       page.evaluate(() => {
@@ -51,18 +51,18 @@ test('scanning and moving many files does not block the interface', async () => 
 
     await startFrames()
     const scanStart = Date.now()
-    await page.getByRole('button', { name: 'Skanuj' }).click()
-    await expect(page.getByTestId('scan-phase')).toHaveText('Skan zakończony', { timeout: 300000 })
+    await page.getByRole('button', { name: 'Scan', exact: true }).click()
+    await expect(page.getByTestId('scan-phase')).toHaveText('Scan finished', { timeout: 300000 })
     const scanMs = Date.now() - scanStart
     const scanFrames = await readFrames()
 
-    await page.getByRole('button', { name: 'Zaplanuj porządek' }).click()
-    await page.getByRole('button', { name: /^Przenieś \d/ }).click()
-    await page.getByRole('button', { name: 'Przenieś pliki' }).click()
+    await page.getByRole('button', { name: 'Plan the cleanup' }).click()
+    await page.getByRole('button', { name: /^Move \d/ }).click()
+    await page.getByRole('button', { name: 'Move files' }).click()
     const runStart = Date.now()
     await page.waitForTimeout(1500)
     await readFrames()
-    await expect(page.getByTestId('summary-title')).toHaveText('Gotowe', { timeout: 600000 })
+    await expect(page.getByTestId('summary-title')).toHaveText('Finished', { timeout: 600000 })
     const runMs = Date.now() - runStart
     const runFrames = await readFrames()
 

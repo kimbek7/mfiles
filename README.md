@@ -2,24 +2,26 @@
 
 A Windows desktop app for organizing files in a folder or on a whole drive. It shows the scan as a live map, and during sorting files flow as particles into their target groups.
 
+The interface is in English by default and can be switched to Polish with the `EN | PL` control. The choice is remembered, and it also sets the names of the folders and the change list the app creates.
+
 ## How it works
 
 1. **Scan:** the folder map grows live. Colors stand for file types, and after the scan you can click a folder to zoom in.
 2. **Plan:** choose the grouping (type, year, month, size, in any order) and review paths before and after. Nothing changes on disk at this stage.
 3. **Simulation (optional):** the full animation without touching any files.
-4. **Sorting:** files go to `<selected folder>\_Posortowane` by default.
+4. **Sorting:** files go to `<selected folder>\_Sorted` by default (`_Posortowane` in Polish).
 5. **Undo:** available right away and later from the history, also after restarting the app.
 
 ## How context is preserved
 
 Organizing does not detach files from what they are about:
 
-- **Topic folders:** a folder with a meaningful name (`Klienci`, `Wakacje 2023`) moves as a whole to `Tematy`, and its contents stay unchanged.
+- **Topic folders:** a folder with a meaningful name (`Klienci`, `Wakacje 2023`) moves as a whole to `Topics`, and its contents stay unchanged.
 - **Generic folders:** `Pobrane`, `Pulpit`, `Nowy folder` and auto-generated names are split, and their subfolders are evaluated separately. Only loose files are grouped by type and date.
-- **Your decision:** on the plan screen every folder can be set to **W całości** (whole), **Zostaw** (keep) or **Rozbij** (split), with an immediate preview. When organizing a whole drive, topics stay in place by default.
+- **Your decision:** on the plan screen every folder can be set to **Whole**, **Keep** or **Split**, with an immediate preview. When organizing a whole drive, topics stay in place by default.
 - **Companion files:** subtitles, photo metadata and `page_files` folders follow their main file.
-- **Duplicates:** a copy inside a topic always wins, and only loose copies go to `_Duplikaty`.
-- **Change list:** `_Spis-<session>.csv` is created in the target folder with paths before and after. It opens in Excel, and undo removes it.
+- **Duplicates:** a copy inside a topic always wins, and only loose copies go to `_Duplicates`.
+- **Change list:** `_Changes-<session>.csv` is created in the target folder with paths before and after. It opens in Excel, and undo removes it.
 
 Context comes only from paths and names. The app does not read document contents for this purpose.
 
@@ -35,7 +37,7 @@ npm run dev
 ## File safety guarantees
 
 - Nothing is overwritten: a name collision produces ` (2)`.
-- Nothing is deleted, except the original after a hash-verified copy to another drive. Duplicates are only moved to `_Duplikaty`.
+- Nothing is deleted, except the original after a hash-verified copy to another drive. Duplicates are only moved to `_Duplicates`.
 - Every operation is recorded in the journal at `%APPDATA%\mfiles\journal` before it runs. After a crash the app offers to finish undoing.
 - Folders with `.git`, `package.json`, `.sln`, `.csproj` etc. and portable apps (`.exe` + `.dll`) move as a whole.
 - A file changed after the plan was built, or locked by another program, is skipped and reported.
@@ -48,6 +50,7 @@ npm run dev
 | `src/core` | logic without Electron: scan, classification, duplicates, context, plan, execution, journal |
 | `src/main` | main process and the worker doing all file work |
 | `src/preload` | narrow API for the interface |
+| `src/shared` | contract between processes and the English and Polish dictionaries |
 | `src/renderer` | React and the PixiJS scene |
 
 ## Tests

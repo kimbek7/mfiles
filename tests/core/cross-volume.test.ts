@@ -28,6 +28,7 @@ it.skipIf(!secondVolume)('moves and undoes on a real second drive', async () => 
       targetRoot: target,
       dimensions: ['type'],
       separateDuplicates: false,
+      language: 'pl',
     })
 
     const run = await executePlan(plan, { journalDir })

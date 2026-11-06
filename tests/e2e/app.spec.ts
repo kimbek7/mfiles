@@ -66,16 +66,20 @@ let root: string
 let userData: string
 const problems: string[] = []
 
+function launch(): Promise<ElectronApplication> {
+  const executable = process.env.MFILES_EXE
+  return electron.launch({
+    ...(executable ? { executablePath: executable, args: [] } : { args: ['.'] }),
+    env: { ...process.env, MFILES_USER_DATA: userData },
+  })
+}
+
 test.beforeAll(async () => {
   root = await mkdtemp(path.join(tmpdir(), 'mfiles-e2e-'))
   userData = await mkdtemp(path.join(tmpdir(), 'mfiles-e2e-data-'))
   await mkdir(SHOTS, { recursive: true })
   await buildFixture(root, 600)
-  const executable = process.env.MFILES_EXE
-  app = await electron.launch({
-    ...(executable ? { executablePath: executable, args: [] } : { args: ['.'] }),
-    env: { ...process.env, MFILES_USER_DATA: userData },
-  })
+  app = await launch()
   page = await app.firstWindow()
   page.on('console', (message) => {
     if (message.type() === 'error') problems.push(message.text())
@@ -92,11 +96,12 @@ test.afterAll(async () => {
 test('full path: scan, plan, simulation, move, undo', async () => {
   const before = await fingerprint(root)
 
-  await page.getByLabel('Ścieżka folderu').fill(root)
+  await page.getByLabel('Folder path').fill(root)
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en')
   await page.screenshot({ path: path.join(SHOTS, '1-start.png') })
-  await page.getByRole('button', { name: 'Skanuj' }).click()
+  await page.getByRole('button', { name: 'Scan', exact: true }).click()
 
-  await expect(page.getByTestId('scan-phase')).toHaveText('Skan zakończony', { timeout: 30000 })
+  await expect(page.getByTestId('scan-phase')).toHaveText('Scan finished', { timeout: 30000 })
   await page.waitForTimeout(600)
   await page.screenshot({ path: path.join(SHOTS, '2-skan.png') })
   const sceneBox = await page.getByTestId('scene').boundingBox()
@@ -106,12 +111,12 @@ test('full path: scan, plan, simulation, move, undo', async () => {
   const canvas = await page.locator('.scene canvas').boundingBox()
   expect(canvas?.width).toBeCloseTo(sceneBox?.width ?? 0, 0)
   await page.getByTestId('scene').click({ position: { x: (canvas?.width ?? 0) - 12, y: (canvas?.height ?? 0) - 12 } })
-  await expect(page.getByRole('button', { name: '← Wyżej' })).toBeVisible()
+  await expect(page.getByRole('button', { name: '← Up' })).toBeVisible()
   await page.waitForTimeout(500)
   await page.screenshot({ path: path.join(SHOTS, '2b-zoom.png') })
-  await page.getByRole('button', { name: '← Wyżej' }).click()
+  await page.getByRole('button', { name: '← Up' }).click()
 
-  await page.getByRole('button', { name: 'Zaplanuj porządek' }).click()
+  await page.getByRole('button', { name: 'Plan the cleanup' }).click()
   await expect(page.getByTestId('plan-count')).not.toHaveText('0')
   await page.waitForTimeout(400)
   await page.screenshot({ path: path.join(SHOTS, '3-plan.png') })
@@ -122,36 +127,36 @@ test('full path: scan, plan, simulation, move, undo', async () => {
   await expect(topicList).toContainText('Klienci')
   await page.waitForTimeout(300)
   await page.screenshot({ path: path.join(SHOTS, '3b-tematy.png') })
-  await topicList.getByRole('group', { name: 'Decyzja dla Dokumenty\\Dom' }).getByRole('button', { name: 'Zostaw' }).click()
+  await topicList.getByRole('group', { name: 'Decision for Dokumenty\\Dom' }).getByRole('button', { name: 'Keep' }).click()
   await expect(page.getByTestId('plan-kept')).not.toHaveText('0')
-  await page.getByRole('button', { name: 'Zamknij' }).click()
+  await page.getByRole('button', { name: 'Close' }).click()
 
   await page.getByTestId('group-list').getByRole('button').first().click()
   await expect(page.locator('.file-row').first()).toContainText('→')
   await page.screenshot({ path: path.join(SHOTS, '4-podglad-grupy.png') })
-  await page.getByRole('button', { name: 'Zamknij' }).click()
+  await page.getByRole('button', { name: 'Close' }).click()
 
-  await page.getByRole('button', { name: 'Pokaż symulację' }).click()
+  await page.getByRole('button', { name: 'Show simulation' }).click()
   await page.waitForTimeout(3000)
   await page.screenshot({ path: path.join(SHOTS, '5-symulacja.png') })
-  await expect(page.getByRole('button', { name: 'Pokaż symulację' })).toBeEnabled({ timeout: 20000 })
+  await expect(page.getByRole('button', { name: 'Show simulation' })).toBeEnabled({ timeout: 20000 })
   expect(await fingerprint(root)).toEqual(before)
 
-  await page.getByRole('button', { name: /^Przenieś \d/ }).click()
+  await page.getByRole('button', { name: /^Move \d/ }).click()
   await page.screenshot({ path: path.join(SHOTS, '6-potwierdzenie.png') })
-  await page.getByRole('button', { name: 'Przenieś pliki' }).click()
-  await expect(page.getByTestId('summary-title')).toHaveText('Gotowe', { timeout: 60000 })
+  await page.getByRole('button', { name: 'Move files' }).click()
+  await expect(page.getByTestId('summary-title')).toHaveText('Finished', { timeout: 60000 })
   await page.waitForTimeout(1500)
   await page.screenshot({ path: path.join(SHOTS, '7-wynik.png') })
 
-  const sorted = path.join(root, '_Posortowane')
+  const sorted = path.join(root, '_Sorted')
   const contents = await readdir(sorted)
-  expect(contents).toEqual(expect.arrayContaining(['PDF', 'Wideo', 'Audio', 'Projekty', 'Tematy', '_Duplikaty']))
-  expect(contents.some((name) => name.startsWith('_Spis-') && name.endsWith('.csv'))).toBe(true)
+  expect(contents).toEqual(expect.arrayContaining(['PDF', 'Video', 'Audio', 'Projects', 'Topics', '_Duplicates']))
+  expect(contents.some((name) => name.startsWith('_Changes-') && name.endsWith('.csv'))).toBe(true)
   const year = String(new Date().getFullYear())
-  await expect(stat(path.join(sorted, 'Projekty', year, 'moj-projekt', '.git', 'HEAD'))).resolves.toBeDefined()
+  await expect(stat(path.join(sorted, 'Projects', year, 'moj-projekt', '.git', 'HEAD'))).resolves.toBeDefined()
 
-  const topicsDir = path.join(sorted, 'Tematy')
+  const topicsDir = path.join(sorted, 'Topics')
   expect((await readdir(topicsDir)).sort()).toEqual(['Klienci', 'Praca', 'Wakacje 2023'])
   const clientFiles = Object.keys(before).filter((p) => p.startsWith(path.join('Klienci', path.sep)))
   expect(clientFiles.length).toBeGreaterThan(0)
@@ -161,11 +166,55 @@ test('full path: scan, plan, simulation, move, undo', async () => {
   const keptFiles = await readdir(path.join(root, 'Dokumenty', 'Dom'))
   expect(keptFiles.length).toBeGreaterThan(0)
 
-  await page.getByRole('button', { name: 'Cofnij wszystko' }).click()
-  await expect(page.getByTestId('undo-result')).toContainText('Konflikty: 0', { timeout: 60000 })
+  await page.getByRole('button', { name: 'Undo everything' }).click()
+  await expect(page.getByTestId('undo-result')).toContainText('Conflicts: 0', { timeout: 60000 })
   await page.screenshot({ path: path.join(SHOTS, '8-cofniete.png') })
   expect(await fingerprint(root)).toEqual(before)
   await expect(stat(sorted)).rejects.toThrow()
+
+  expect(problems).toEqual([])
+})
+
+test('switching to Polish changes the interface and results, and survives a restart', async () => {
+  const before = await fingerprint(root)
+  await page.getByRole('button', { name: '← Start' }).click()
+
+  await page.getByTestId('language-switch').getByRole('button', { name: 'PL' }).click()
+  await expect(page.locator('html')).toHaveAttribute('lang', 'pl')
+  await expect(page.getByRole('button', { name: 'Skanuj', exact: true })).toBeVisible()
+  await page.screenshot({ path: path.join(SHOTS, 'pl-1-start.png') })
+
+  await page.getByLabel('Ścieżka folderu').fill(root)
+  await page.getByRole('button', { name: 'Skanuj', exact: true }).click()
+  await expect(page.getByTestId('scan-phase')).toHaveText('Skan zakończony', { timeout: 30000 })
+  await page.getByRole('button', { name: 'Zaplanuj porządek' }).click()
+  await expect(page.getByLabel('Folder docelowy')).toHaveValue(path.join(root, '_Posortowane'))
+  await page.waitForTimeout(400)
+  await page.screenshot({ path: path.join(SHOTS, 'pl-2-plan.png') })
+
+  await page.getByTestId('language-switch').getByRole('button', { name: 'EN' }).click()
+  await expect(page.getByLabel('Target folder')).toHaveValue(path.join(root, '_Sorted'))
+  await expect(page.getByTestId('group-list')).toContainText('Topics')
+  await page.getByTestId('language-switch').getByRole('button', { name: 'PL' }).click()
+  await expect(page.getByTestId('group-list')).toContainText('Tematy')
+
+  await page.getByRole('button', { name: /^Przenieś \d/ }).click()
+  await page.getByRole('button', { name: 'Przenieś pliki' }).click()
+  await expect(page.getByTestId('summary-title')).toHaveText('Gotowe', { timeout: 60000 })
+  const sorted = path.join(root, '_Posortowane')
+  const contents = await readdir(sorted)
+  expect(contents).toEqual(expect.arrayContaining(['Tematy', 'Wideo', '_Duplikaty']))
+  expect(contents.some((name) => name.startsWith('_Spis-'))).toBe(true)
+
+  await page.getByRole('button', { name: 'Cofnij wszystko' }).click()
+  await expect(page.getByTestId('undo-result')).toContainText('Konflikty: 0', { timeout: 60000 })
+  expect(await fingerprint(root)).toEqual(before)
+
+  await app.close()
+  app = await launch()
+  page = await app.firstWindow()
+  await expect(page.locator('html')).toHaveAttribute('lang', 'pl')
+  await expect(page.getByRole('button', { name: 'Skanuj', exact: true })).toBeVisible()
 
   expect(problems).toEqual([])
 })

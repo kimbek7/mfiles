@@ -6,10 +6,14 @@ import { findDuplicates } from '../../src/core/duplicates'
 import { executePlan, SimulatedCrash, TEMP_SUFFIX, undoSession } from '../../src/core/executor'
 import type { FsOverrides } from '../../src/core/executor'
 import { listSessions, readJournal, sessionPath } from '../../src/core/journal'
-import { buildPlan, DEFAULT_TARGET_DIR, segmentsFor, sizeBucket } from '../../src/core/planner'
+import { buildPlan, segmentsFor, sizeBucket } from '../../src/core/planner'
+import { outputLabels } from '../../src/shared/i18n'
 import { emptyStats, scan } from '../../src/core/scanner'
 import type { Dimension, FileEntry, Plan } from '../../src/core/types'
 import { snapshot, tempDir, writeTree } from './helpers'
+
+const POLISH = outputLabels('pl')
+const DEFAULT_TARGET_DIR = POLISH.targetDir
 
 const TREE = {
   'raport.pdf': 'pdf-content',
@@ -33,6 +37,7 @@ async function prepare(root: string, dimensions: Dimension[] = ['type'], separat
     targetRoot: path.join(root, DEFAULT_TARGET_DIR),
     dimensions,
     separateDuplicates,
+    language: 'pl',
   })
 }
 
@@ -60,15 +65,16 @@ function entry(partial: Partial<FileEntry>): FileEntry {
 describe('planner', () => {
   it('orders segments by the chosen dimensions', () => {
     const e = entry({})
-    expect(segmentsFor(e, ['type', 'year', 'month'])).toEqual(['Dokumenty', '2023', '03'])
+    expect(segmentsFor(e, ['type', 'year', 'month'], POLISH)).toEqual(['Dokumenty', '2023', '03'])
+    expect(segmentsFor(e, ['type', 'year', 'month'])).toEqual(['Documents', '2023', '03'])
     expect(segmentsFor(e, ['month'])).toEqual(['2023-03'])
     expect(segmentsFor(entry({ takenAtMs: new Date(2010, 0, 2).getTime() }), ['year'])).toEqual(['2010'])
   })
 
   it('sets size buckets at their boundaries', () => {
-    expect(sizeBucket(1024 * 1024 - 1)).toBe('Poniżej 1 MB')
+    expect(sizeBucket(1024 * 1024 - 1)).toBe('Under 1 MB')
     expect(sizeBucket(1024 * 1024)).toBe('1–100 MB')
-    expect(sizeBucket(1024 ** 3)).toBe('Powyżej 1 GB')
+    expect(sizeBucket(1024 ** 3)).toBe('Over 1 GB')
   })
 
   it('resolves name collisions regardless of case', () => {

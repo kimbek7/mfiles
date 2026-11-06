@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { TreeTile } from '../core/types'
-import { flowBus, formatBytes, formatCount } from './lib'
+import { translate } from '../shared/i18n'
+import { flowBus, formatBytes } from './lib'
 import { SceneController } from './scene/SceneController'
 import { useApp } from './store'
+import { useT } from './useT'
 
 interface Hover {
   tile: TreeTile
@@ -17,7 +19,17 @@ export function Scene(): React.JSX.Element {
   const [scene, setScene] = useState<SceneController | null>(null)
   const [hover, setHover] = useState<Hover | null>(null)
   const stage = useApp((s) => s.stage)
-  const tiles = useApp((s) => s.focus?.tiles ?? s.scan?.tiles)
+  const rawTiles = useApp((s) => s.focus?.tiles ?? s.scan?.tiles)
+  const { t, plural, labels, language } = useT()
+  const tiles = useMemo(
+    () =>
+      rawTiles?.map((tile) => {
+        if (tile.kind === 'loose' && tile.category) return { ...tile, label: labels.categories[tile.category] }
+        if (tile.kind === 'rest') return { ...tile, label: t('scene.rest', { count: tile.restCount ?? 0 }) }
+        return tile
+      }),
+    [rawTiles, labels, t],
+  )
   const plan = useApp((s) => s.plan)
   const openTile = useApp((s) => s.openTile)
   const undoResult = useApp((s) => s.undoResult)
@@ -29,6 +41,7 @@ export function Scene(): React.JSX.Element {
     void SceneController.create(host.current as HTMLDivElement, {
       onHover: (tile, x, y) => setHover(tile ? { tile, x, y } : null),
       onOpen: (tile) => void openTile(tile),
+      restLabel: (count) => translate(useApp.getState().language, 'scene.rest', { count }),
     }).then((controller) => {
       if (disposed) {
         controller.destroy()
@@ -47,7 +60,7 @@ export function Scene(): React.JSX.Element {
     if (!scene) return
     if (stage === 'scan' && tiles) scene.showTiles(tiles)
     else if (stage !== 'scan' && plan) scene.showFlow(plan)
-  }, [scene, stage, tiles, plan])
+  }, [scene, stage, tiles, plan, language])
 
   useEffect(() => {
     if (!scene) return undefined
@@ -75,9 +88,9 @@ export function Scene(): React.JSX.Element {
         <div className="tooltip" style={{ left: hover.x + 14, top: hover.y + 14 }}>
           <strong>{hover.tile.label}</strong>
           <span>
-            {formatBytes(hover.tile.bytes)} · {formatCount(hover.tile.files)} plików
+            {formatBytes(hover.tile.bytes)} · {plural('files', hover.tile.files)}
           </span>
-          {hover.tile.isDir && <em>Kliknij, aby wejść</em>}
+          {hover.tile.isDir && <em>{t('scene.open')}</em>}
         </div>
       )}
     </div>

@@ -14,8 +14,6 @@ const COPY_SUFFIX = /(\s*\(\d+\)|\s*-\s*(kopia|copy))+$/i
 const AUTOMATIC_NAME = [/^\d+$/, /^[0-9a-f]{16,}$/i, /^\{?[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}\}?$/i]
 const WEB_ASSETS = /^(.+)_(files|pliki)$/i
 
-export const TOPICS_DIR = 'Tematy'
-
 /** Folders with no meaning of their own: the name says nothing about the contents. */
 export function isGenericFolderName(name: string): boolean {
   const normalized = name.trim().replace(COPY_SUFFIX, '').toLowerCase()

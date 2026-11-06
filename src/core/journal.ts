@@ -47,7 +47,7 @@ export interface JournalState {
 const SESSION_ID = /^[A-Za-z0-9_-]+$/
 
 export function sessionPath(dir: string, id: string): string {
-  if (!SESSION_ID.test(id)) throw new Error(`Nieprawidłowy identyfikator sesji: ${id}`)
+  if (!SESSION_ID.test(id)) throw new Error(`Invalid session id: ${id}`)
   return path.join(dir, `${id}.jsonl`)
 }
 
