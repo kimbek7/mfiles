@@ -1,0 +1,66 @@
+{
+  "name": "mfiles",
+  "version": "0.1.0",
+  "main": "out/main/index.js",
+  "scripts": {
+    "test": "vitest run",
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "typecheck": "tsc --noEmit",
+    "e2e": "electron-vite build && playwright test",
+    "dist": "electron-vite build && electron-builder --win"
+  },
+  "author": "Sylwester Buczak",
+  "description": "Visual file organizer",
+  "dependencies": {
+    "@tanstack/react-virtual": "^3.14.26",
+    "d3-hierarchy": "^3.1.3",
+    "exifr": "^7.1.3",
+    "file-type": "^22.3.0",
+    "pixi.js": "^8.22.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "zustand": "^5.0.16"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.0",
+    "@types/d3-hierarchy": "^3.1.7",
+    "@types/node": "^22.20.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.2.1",
+    "electron": "^45.2.3",
+    "electron-builder": "^26.18.0",
+    "electron-vite": "^6.0.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.6",
+    "vitest": "^5.1.0"
+  },
+  "private": true,
+  "build": {
+    "appId": "com.namusoft.mfiles",
+    "productName": "Mfiles",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "out/**/*"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "portable": {
+      "artifactName": "Mfiles-${version}-portable.exe"
+    }
+  }
+}
