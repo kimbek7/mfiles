@@ -109,7 +109,7 @@ $env:MFILES_PERF=20000; npx playwright test perf.spec   # performance on real fi
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). To report a vulnerability, follow [SECURITY.md](SECURITY.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md). To report a vulnerability, follow [SECURITY.md](SECURITY.md).
 
 ## License
 

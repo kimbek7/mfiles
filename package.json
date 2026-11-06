@@ -14,7 +14,7 @@
     "format:check": "prettier --check .",
     "postinstall": "node node_modules/electron/install.js"
   },
-  "author": "Namusoft",
+  "author": "Namusoft <namusoft7@gmail.com>",
   "description": "Organize a folder or drive with a live visualization, a preview of every change and full undo",
   "dependencies": {
     "@tanstack/react-virtual": "^3.14.26",

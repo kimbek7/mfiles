@@ -1,6 +1,6 @@
 # Contributing to Mfiles
 
-Thanks for your interest. Bug reports, ideas and pull requests are welcome.
+Thanks for your interest. Bug reports, ideas and pull requests are welcome. By taking part you agree to the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Getting started
 
